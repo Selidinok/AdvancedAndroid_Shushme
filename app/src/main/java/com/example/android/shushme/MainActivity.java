@@ -18,10 +18,12 @@ package com.example.android.shushme;
 
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.SwitchPreference;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -31,6 +33,8 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.Toast;
 
 import com.example.android.shushme.provider.PlaceContract;
@@ -64,6 +68,9 @@ public class MainActivity extends AppCompatActivity implements
     private PlaceListAdapter mAdapter;
     private RecyclerView mRecyclerView;
     private GoogleApiClient mClient;
+    private Geofencing mGeofencing;
+
+    private boolean mIsEnabled;
 
     /**
      * Called when the activity is starting
@@ -83,6 +90,21 @@ public class MainActivity extends AppCompatActivity implements
 
         // TODO (9) Create a boolean SharedPreference to store the state of the "Enable Geofences" switch
         // and initialize the switch based on the value of that SharedPreference
+        Switch GeoSwitch = (Switch) findViewById(R.id.enable_switch);
+        mIsEnabled = getPreferences(MODE_PRIVATE).getBoolean(getString(R.string.enable_geofences), false);
+
+        GeoSwitch.setChecked(mIsEnabled);
+        GeoSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
+                editor.putBoolean(getString(R.string.enable_geofences), isChecked);
+                mIsEnabled = isChecked;
+                editor.commit();
+                if (isChecked) mGeofencing.registerAllGeofences();
+                else mGeofencing.unRegisterAllGeofences();
+            }
+        });
 
         // TODO (10) Handle the switch's change event and Register/Unregister geofences based on the value of isChecked
         // as well as set a private boolean mIsEnabled to the current switch's state
@@ -123,6 +145,7 @@ public class MainActivity extends AppCompatActivity implements
         // using the helper function getGeofencePendingIntent()
 
         // TODO (8) Create a new instance of Geofencing using "this" as the context and mClient as the client
+        mGeofencing = new Geofencing(this, mClient);
 
     }
 
@@ -178,6 +201,8 @@ public class MainActivity extends AppCompatActivity implements
             public void onResult(@NonNull PlaceBuffer places) {
                 mAdapter.swapPlaces(places);
                 // TODO (11) Call updateGeofenceList and registerAllGeofences if mIsEnabled is true
+                mGeofencing.updateGeofencesList(places);
+                if (mIsEnabled) mGeofencing.registerAllGeofences();
             }
         });
     }
